@@ -1,0 +1,4 @@
+
+topo_path: "./topo/RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc" # path to topography
+n_latitudes: 181 # number of latitudes
+n_longitudes: 361 # number of longitudes

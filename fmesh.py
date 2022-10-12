@@ -6,9 +6,6 @@ Created on Sat Jul 30 13:00:19 2022
 """
 
 import sys
-sys.path.extend(['/Users/sergeikirillov/CEOS/Work/Python/module',]) 
-
-
 import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cf
@@ -16,6 +13,7 @@ import pickle
 import netCDF4 as nc
 import os
 import jigsawpy
+import yaml
 
 from fastkml import geometry, kml
 from pathlib import Path
@@ -43,8 +41,9 @@ def create_tria_in_node_dictionary(triangles):
     
 class Find_topo():
     
-    def __init__(self):
-        self.__ds = nc.Dataset("../RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc")
+    def __init__(self, settings):
+        topo_path = settings['topo_path']#"./topo/RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc"
+        self.__ds = nc.Dataset(topo_path)
         self.__lat, self.__lon = self.__ds.variables["lat"][:, 1], self.__ds.variables["lon"][:, 0]
         self.topo = self.__ds.variables["topo"][:, :]
         
@@ -89,10 +88,10 @@ def from_kml(file, name, res, precision=10, order=True):
 # THE FUNCTION FOR ADJUSTING RESOLUTIONS TO THE BATHYMETRY 
 #    Need to be called if needed! 
 
-def bathymetry_adjustment():
+def bathymetry_adjustment(settings):
 
     print('read topography')
-    topo = Find_topo()
+    topo = Find_topo(settings)
     
     minimum = np.min(topo.topo)
     maximum = np.max(topo.topo)
@@ -301,7 +300,7 @@ def refine(region):
 # THE BLOCK WHERE THE BACKGROUND RESOLUTIONS ARE SET, REFINED ALONG COASTLINES, 
 # REFINED WITHINN KML POLYGONS AND __CAN_BE__ ADJUSTED TO BATHYMETRY IF NEEDED
 
-def define_resolutions():
+def define_resolutions(settings):
     
     global result, regions, longitudes, latitudes
     
@@ -462,7 +461,7 @@ def triangulation(src_path, dst_path):
        
 # CUTTING OFF THE LAND (POSITIVE TOPOGRAPHY) FROM THE RESULTING JIGSAW MESH
 
-def cut_land(depth_limit=-20):
+def cut_land(settings, depth_limit=-20):
     
     # TRANSFORMING CARTESIAN MESH TO LONGITUDES AND LATITUDES -----------------
     
@@ -490,7 +489,7 @@ def cut_land(depth_limit=-20):
     print('')    
     print('reading global topography')
 
-    topo = Find_topo()
+    topo = Find_topo(settings)
         
     print('')    
     print('deleting triangles over land: step 1 of 2')
@@ -724,12 +723,15 @@ def cut_land(depth_limit=-20):
 
 
 def main():
+    with open('./configure.yaml') as file:
+        settings = yaml.load(file, Loader=yaml.FullLoader)
+
     if Path('_result_temp.pkl').exists():
         with open('_result_temp.pkl', 'rb') as file:
             global result, latitudes, longitudes
             regions, result, latitudes, longitudes = pickle.load(file)
     else:
-        define_resolutions()
+        define_resolutions(settings)
         
     if Path('_mesh_temp.pkl').exists():
         with open('_mesh_temp.pkl', 'rb') as file:
@@ -738,7 +740,7 @@ def main():
     else:
         triangulation('jigsaw/','jigsaw/')
         
-    cut_land(depth_limit=-30)
+    cut_land(settings, depth_limit=-30)
     
 
 if __name__ == '__main__':

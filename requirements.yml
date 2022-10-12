@@ -9,6 +9,7 @@ dependencies:
   - cartopy
   - cmake
   - geopy
+  - pyyaml
   # - lxml
 
 
