@@ -44,7 +44,7 @@ def create_tria_in_node_dictionary(triangles):
 class Find_topo():
     
     def __init__(self):
-        self.__ds = nc.Dataset("RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc")
+        self.__ds = nc.Dataset("../RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc")
         self.__lat, self.__lon = self.__ds.variables["lat"][:, 1], self.__ds.variables["lon"][:, 0]
         self.topo = self.__ds.variables["topo"][:, :]
         
@@ -305,10 +305,11 @@ def define_resolutions():
     
     global result, regions, longitudes, latitudes
     
-    latitudes = np.linspace(-90, 90, 180*16 + 1)        # 180*16
-    longitudes = np.linspace(-180, 180, np.round(360 * 16/5.75).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
+    latitudes = np.linspace(-90, 90, 180 + 1)        # 180*16
+    longitudes = np.linspace(-180, 180, np.round(360).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
     
-    base_resolution = 111
+    # base_resolution = 111
+    base_resolution = 200
     
     result = np.full([len(latitudes), len(longitudes)], base_resolution).astype(float)
 
@@ -324,27 +325,31 @@ def define_resolutions():
     #            result[j, i] = arctic_resolution
     
     # resolution in the entire Arctic above 60N
+    # for j in range(0, len(latitudes)):
+    #     result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
+    #     if abs(latitudes[j]) >= 77:  
+    #         result[j, :] = 25
+        
     for j in range(0, len(latitudes)):
         result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
         if abs(latitudes[j]) >= 77:  
-            result[j, :] = 25
-        
-    
+            result[j, :] = 50
+
     # refine resolution along coastlines
     min_resolution = 5      # km, resolution at the coast 
     max_distance = 150      # km, distance from the coast
     min_length = 200        # km, min length of coastline
     averaging = 50          # km, smoothing coastline 
     
-    refine_along_coastlines(min_resolution=min_resolution, max_distance=max_distance, 
-                            min_length=min_length, averaging=averaging)
+    # refine_along_coastlines(min_resolution=min_resolution, max_distance=max_distance, 
+    #                         min_length=min_length, averaging=averaging)
     
     # create polygons from .kml files
     regions = []
     #from_kml('_kml/CAA.kml','CAA', res=5, precision=10, order=True)
-    from_kml('_kml/Baffin_Bay.kml','Baffin', res=5, precision=20, order=True)
-    from_kml('_kml/Nares.kml','Nares', res=1, precision=20, order=True)
-    from_kml('_kml/Peabody.kml','Peabody', res=0.18, precision=20, order=True)
+    from_kml('./kml/Baffin_Bay.kml','Baffin', res=5, precision=20, order=True)
+    # from_kml('./kml/Nares.kml','Nares', res=1, precision=20, order=True)
+    # from_kml('./kml/Peabody.kml','Peabody', res=0.18, precision=20, order=True)
     #from_kml('_kml/Cardigan.kml','Cardigan', res=0.2, precision=10, order=True)
     #from_kml('_kml/Fury.kml','Fury', res=0.2, precision=10, order=True)
     #from_kml('_kml/Denmark.kml','Denmark', res=0.5, precision=10, order=True)

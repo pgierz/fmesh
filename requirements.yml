@@ -1,0 +1,15 @@
+name: fmesh
+channels:
+  - conda-forge
+dependencies:
+  - python<=3.9
+  - numpy
+  - netCDF4
+  - fastkml
+  - cartopy
+  - cmake
+  - geopy
+  # - lxml
+
+
+

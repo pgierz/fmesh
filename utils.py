@@ -301,8 +301,8 @@ def read_coastlines2(min_length=50, averaging=2, limits=[-180, 180, -90, 90]):
         return lon, lat
 
 
-    path = '/Users/sergeikirillov/CEOS/Work/OSM coastlines/'
-    
+    path = '/Users/nkolduno/FESOM/fmesh/kml/'
+        
     if Path(path + 'min_length=' + str(min_length) + 'km averaging=' + str(averaging)+ 'km.pkl').exists():
         with open(path + 'min_length=' + str(min_length) + 'km averaging=' + str(averaging)+ 'km.pkl', 'rb') as file:
             lon, lat = pickle.load(file)
