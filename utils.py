@@ -303,8 +303,8 @@ def read_coastlines2(min_length=50, averaging=2, limits=[-180, 180, -90, 90]):
 
     path = './coastlines/'
 
-    if Path(path + 'min_length=' + str(min_length) + 'km averaging=' + str(averaging)+ 'km.pkl').exists():
-        with open(path + 'min_length=' + str(min_length) + 'km averaging=' + str(averaging)+ 'km.pkl', 'rb') as file:
+    if Path(path + 'min_length=' + str(min_length) + 'km_averaging=' + str(averaging)+ 'km.pkl').exists():
+        with open(path + 'min_length=' + str(min_length) + 'km_averaging=' + str(averaging)+ 'km.pkl', 'rb') as file:
             lon, lat = pickle.load(file)
     else:
 
@@ -316,7 +316,7 @@ def read_coastlines2(min_length=50, averaging=2, limits=[-180, 180, -90, 90]):
           
         lon, lat = smooth_coast(lon_subset, lat_subset, np.round(averaging/0.05/10).astype(int), averaging)
                           
-        with open(path + 'min_length=' + str(min_length) + 'km averaging=' + str(averaging)+ 'km.pkl', 'wb') as file:
+        with open(path + 'min_length=' + str(min_length) + 'km_averaging=' + str(averaging)+ 'km.pkl', 'wb') as file:
             pickle.dump([lon, lat], file)   
         
     return lon, lat

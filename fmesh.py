@@ -57,7 +57,18 @@ class Find_topo():
 #   presision sets the amount of nodes for each segment of kml contour for
 #   the followed linear interpolation between internal and external contours 
 
-def from_kml(file, name, res, precision=10, order=True):
+def from_kml(file, order=True):
+    '''
+    Opens kml files that define regions with different resolution from the base one.
+
+    Parameters
+    ----------
+    file: str
+        path to the .kml file
+    order: bool
+        If True, fist polygone is internal and second is external. I False, then other way round. 
+
+    '''
     
     with open(file) as kml_file:
         doc = kml_file.read().encode('utf-8')
@@ -74,16 +85,10 @@ def from_kml(file, name, res, precision=10, order=True):
                     else:
                         outer = [lon, lat]
     
-    regions.append({})
     if not order:
         internal, outer = outer, internal
-            
-    regions[-1]['name'] = name
-    regions[-1]['Polygon inside'] =  internal[0], internal[1]
-    regions[-1]['Polygon outside'] = outer[0], outer[1]
-    regions[-1]['resolution'] = res
-    regions[-1]['precision'] = precision
-    
+
+    return internal, outer
 
 # THE FUNCTION FOR ADJUSTING RESOLUTIONS TO THE BATHYMETRY 
 #    Need to be called if needed! 
@@ -230,8 +235,8 @@ def refine(region):
         max_lon = 180
         
     if abs(max_lon + min_lon) < 20: 
-        min_lon = -180
-        max_lon = 180
+        min_lon = -40
+        max_lon = 40
         
     
     print('') 
@@ -304,11 +309,11 @@ def define_resolutions(settings):
     
     global result, regions, longitudes, latitudes
     
-    latitudes = np.linspace(-90, 90, 180 + 1)        # 180*16
-    longitudes = np.linspace(-180, 180, np.round(360).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
+    latitudes = np.linspace(-90, 90, settings['n_latitudes'] + 1)        # 180*16
+    longitudes = np.linspace(-180, 180, np.round(settings['n_longitudes']).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
     
     # base_resolution = 111
-    base_resolution = 200
+    base_resolution = settings['base_resolution']
     
     result = np.full([len(latitudes), len(longitudes)], base_resolution).astype(float)
 
@@ -328,33 +333,55 @@ def define_resolutions(settings):
     #     result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
     #     if abs(latitudes[j]) >= 77:  
     #         result[j, :] = 25
-        
-    for j in range(0, len(latitudes)):
-        result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
-        if abs(latitudes[j]) >= 77:  
-            result[j, :] = 50
+
+    if settings['mercator_resolution']['do_mercator_refinement']:
+        for j in range(0, len(latitudes)):
+            result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
+            if latitudes[j] >= settings['mercator_resolution']['norhtern_boundary']:  
+                result[j, :] = settings['mercator_resolution']['norhtern_lowest_resolution']
+            elif latitudes[j] <= settings['mercator_resolution']['southern_boundary']:
+                result[j, :] = settings['mercator_resolution']['southern_lowest_resolution']
 
     # refine resolution along coastlines
-    min_resolution = 5      # km, resolution at the coast 
-    max_distance = 150      # km, distance from the coast
-    min_length = 200        # km, min length of coastline
-    averaging = 50          # km, smoothing coastline 
-    
-    # refine_along_coastlines(min_resolution=min_resolution, max_distance=max_distance, 
-    #                         min_length=min_length, averaging=averaging)
+
+    min_resolution=settings['refine_along_coastlines']['min_resolution']
+    max_distance=settings['refine_along_coastlines']['max_distance']
+    min_length=settings['refine_along_coastlines']['min_length']
+    averaging=settings['refine_along_coastlines']['averaging']
+
+    if settings['refine_along_coastlines']['do_refine_along_coastlines']:
+        refine_along_coastlines(min_resolution=min_resolution,
+                                max_distance=max_distance, 
+                                min_length=min_length,
+                                averaging=averaging)
     
     # create polygons from .kml files
     regions = []
     #from_kml('_kml/CAA.kml','CAA', res=5, precision=10, order=True)
-    from_kml('./kml/Baffin_Bay.kml','Baffin', res=5, precision=20, order=True)
+    # from_kml('./kml/Baffin_Bay.kml','Baffin', res=5, precision=20, order=True)
+    # from_kml('./kml/fram.kml','fram', res=5, precision=20, order=True)
     # from_kml('./kml/Nares.kml','Nares', res=1, precision=20, order=True)
     # from_kml('./kml/Peabody.kml','Peabody', res=0.18, precision=20, order=True)
     #from_kml('_kml/Cardigan.kml','Cardigan', res=0.2, precision=10, order=True)
     #from_kml('_kml/Fury.kml','Fury', res=0.2, precision=10, order=True)
-    #from_kml('_kml/Denmark.kml','Denmark', res=0.5, precision=10, order=True)
-    #from_kml('_kml/Gibraltar.kml','Gibraltar', res=0.5, precision=10, order=True)
+    # from_kml('./kml/Denmark.kml','Denmark', res=4, precision=10, order=True)
+    # from_kml('./kml/Gibraltar.kml','Gibraltar', res=4, precision=10, order=True)
     
+    for reg in settings['regions']:
+        internal, outer = from_kml(reg['path'],
+                                #    reg['name'], 
+                                #    res=reg['resolution'], 
+                                #    precision=reg['precision'],
+                                   order=reg['order'])
+        regions.append({})
+        regions[-1]['name'] = reg['name']
+        regions[-1]['Polygon inside'] =  internal[0], internal[1]
+        regions[-1]['Polygon outside'] = outer[0], outer[1]
+        regions[-1]['resolution'] = reg['resolution']
+        regions[-1]['precision'] = reg['precision']
+
     # refining
+    print(regions)
     for region in regions:
         result = refine(region)
     
