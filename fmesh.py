@@ -146,7 +146,8 @@ def add_coastline():
 #      "min_length" is the minimum length of coatline in km used for calculations
 #      "averaging" is the smoothing parameter in km  
 
-def refine_along_coastlines(min_resolution, max_distance, min_length, averaging):
+def refine_along_coastlines(longitudes, latitudes, result, 
+                            min_resolution, max_distance, min_length, averaging):
     
     import geopy.distance as dist
     
@@ -348,7 +349,8 @@ def define_resolutions(settings):
     averaging=settings['refine_along_coastlines']['averaging']
 
     if settings['refine_along_coastlines']['do_refine_along_coastlines']:
-        refine_along_coastlines(min_resolution=min_resolution,
+        result = refine_along_coastlines(longitudes, latitudes, result,
+                                min_resolution=min_resolution,
                                 max_distance=max_distance, 
                                 min_length=min_length,
                                 averaging=averaging)
