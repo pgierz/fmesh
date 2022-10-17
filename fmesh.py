@@ -93,7 +93,7 @@ def from_kml(file, order=True):
 # THE FUNCTION FOR ADJUSTING RESOLUTIONS TO THE BATHYMETRY 
 #    Need to be called if needed! 
 
-def bathymetry_adjustment(settings):
+def bathymetry_adjustment(settings, latitudes, longitudes, result):
 
     print('read topography')
     topo = Find_topo(settings)
@@ -112,6 +112,7 @@ def bathymetry_adjustment(settings):
             depth = interpolate_lonlat(lat, xb, yb, dx, dy, topo.topo, min_points=1)
             if depth>0:
                 result[j, i] = 150 - 149* (depth - 0)/(maximum-0)
+    return result
 
 
 # TRANSFORM COASTLINES FROM DEGREES TO RADIANS FOR PARAVIEW ------------------- 
