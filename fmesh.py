@@ -307,8 +307,6 @@ def refine(region, longitudes, latitudes, result):
 
 def define_resolutions(settings):
     
-    # global result, regions, longitudes, latitudes
-    
     latitudes = np.linspace(-90, 90, settings['n_latitudes'] + 1)        # 180*16
     longitudes = np.linspace(-180, 180, np.round(settings['n_longitudes']).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
     
@@ -414,8 +412,6 @@ def define_resolutions(settings):
 # JIGSAW TRIANGULATION IS CALLED BY THIS FUNCTION 
     
 def triangulation(src_path, dst_path, longitudes, latitudes, result):
-    
-    global mesh
 
     opts = jigsawpy.jigsaw_jig_t()
 
@@ -488,7 +484,7 @@ def triangulation(src_path, dst_path, longitudes, latitudes, result):
        
 # CUTTING OFF THE LAND (POSITIVE TOPOGRAPHY) FROM THE RESULTING JIGSAW MESH
 
-def cut_land(settings, depth_limit=-20):
+def cut_land(settings, mesh, depth_limit=-20):
     
     # TRANSFORMING CARTESIAN MESH TO LONGITUDES AND LATITUDES -----------------
     
@@ -757,19 +753,17 @@ def main():
 
     if Path('_result_temp.pkl').exists():
         with open('_result_temp.pkl', 'rb') as file:
-            # global result, latitudes, longitudes
             regions, result, latitudes, longitudes = pickle.load(file)
     else:
         result, regions, longitudes, latitudes = define_resolutions(settings)
         
     if Path('_mesh_temp.pkl').exists():
         with open('_mesh_temp.pkl', 'rb') as file:
-            global mesh
             mesh = pickle.load(file)
     else:
-        triangulation('jigsaw/','jigsaw/', longitudes, latitudes, result)
+        mesh = triangulation('jigsaw/','jigsaw/', longitudes, latitudes, result)
         
-    cut_land(settings, depth_limit=-30)
+    cut_land(settings, mesh, depth_limit=-30)
     
 
 if __name__ == '__main__':
