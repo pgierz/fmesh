@@ -206,7 +206,7 @@ def refine_along_coastlines(min_resolution, max_distance, min_length, averaging)
 
 # DEFINE RESOLUTIONS WITHIN POLYGONS FROM *.KML FILES
 
-def refine(region):
+def refine(region, longitudes, latitudes, result):
     
     (poly_in, poly_out, resolution, precision) = (region['Polygon inside'], 
                                                   region['Polygon outside'], 
@@ -307,7 +307,7 @@ def refine(region):
 
 def define_resolutions(settings):
     
-    global result, regions, longitudes, latitudes
+    # global result, regions, longitudes, latitudes
     
     latitudes = np.linspace(-90, 90, settings['n_latitudes'] + 1)        # 180*16
     longitudes = np.linspace(-180, 180, np.round(settings['n_longitudes']).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
@@ -383,7 +383,7 @@ def define_resolutions(settings):
     # refining
     print(regions)
     for region in regions:
-        result = refine(region)
+        result = refine(region, longitudes, latitudes, result)
     
     # bathymetry_adjustment()
     pass
@@ -410,10 +410,10 @@ def define_resolutions(settings):
             file.write(f'   resolution: {region["resolution"]} km\n') 
             file.write(f'   precision: {region["precision"]}\n') 
         
- 
+    return result, regions, longitudes, latitudes
 # JIGSAW TRIANGULATION IS CALLED BY THIS FUNCTION 
     
-def triangulation(src_path, dst_path):
+def triangulation(src_path, dst_path, longitudes, latitudes, result):
     
     global mesh
 
@@ -708,15 +708,15 @@ def cut_land(settings, depth_limit=-20):
         #file.write(f'{48}\n') 
         #levels = [0.00, -5.00, -10.00, -20.00, -30.00, -40.00, -50.00, -60.00, -70.00, -80.00, -90.00, -100.00, -115.00, -135.00, -160.00, -190.00, -230.00, -280.00, -340.00, -410.00, -490.00, -580.00, -680.00, -790.00, -910.00, -1040.00, -1180.00, -1330.00, -1500.00, -1700.00, -1920.00, -2150.00, -2400.00, -2650.00, -2900.00, -3150.00, -3400.00, -3650.00, -3900.00, -4150.00, -4400.00, -4650.00, -4900.00, -5150.00, -5400.00, -5650.00, -6000.00, -6250.00]
      
-        file.write(f'{70}\n') 
-        levels = [0.0, -5.0, -10.0, -15.0, -20.0, -25.0, -30.0, -35.0, -40.0, -45.0, -50.0, -55.0, -60.0, -65.0, -70.0, -75.0, -80.0, -85.0, -90.0, -95.0, -100.0,
-                  -110.0, -120.0, -130.0, -140.0, -150.0, -160.0, -170.0, -180.0, -190.0, -200.0,
-                  -220.0, -240.0, -260.0, -280.0, -300.0,
-                  -340.0, -380.0, -420.0, -460.0, -500.0, -540.0, -580.0, -620.0, -660.0,
-                  -760.0, -860.0, -1040.0, -1180.0, -1380.0, -1500.0, -1700.0, -1920.0, -2150.0,
-                  -2400.0, -2650.0, -2900.0, -3150.0, -3400.0, -3650.0, -3900.0, -4150.0, -4400.0, -4650.0, -4900.0, -5150.0, -5400.0, -5650.0, -6000.0, -6350.0]
+        file.write(f'{int(len(settings["levels"]))}\n') 
+        # levels = [0.0, -5.0, -10.0, -15.0, -20.0, -25.0, -30.0, -35.0, -40.0, -45.0, -50.0, -55.0, -60.0, -65.0, -70.0, -75.0, -80.0, -85.0, -90.0, -95.0, -100.0,
+        #           -110.0, -120.0, -130.0, -140.0, -150.0, -160.0, -170.0, -180.0, -190.0, -200.0,
+        #           -220.0, -240.0, -260.0, -280.0, -300.0,
+        #           -340.0, -380.0, -420.0, -460.0, -500.0, -540.0, -580.0, -620.0, -660.0,
+        #           -760.0, -860.0, -1040.0, -1180.0, -1380.0, -1500.0, -1700.0, -1920.0, -2150.0,
+        #           -2400.0, -2650.0, -2900.0, -3150.0, -3400.0, -3650.0, -3900.0, -4150.0, -4400.0, -4650.0, -4900.0, -5150.0, -5400.0, -5650.0, -6000.0, -6350.0]
         
-        for level in levels:
+        for level in settings["levels"]:
             file.write(f'{level:.2f}\n') 
         for index in range(0, len(lon_new)):
             file.write(f'{depths_new[index]:.2f}\n') 
@@ -753,19 +753,21 @@ def main():
     with open('./configure.yaml') as file:
         settings = yaml.load(file, Loader=yaml.FullLoader)
 
+    print(settings['levels'])
+
     if Path('_result_temp.pkl').exists():
         with open('_result_temp.pkl', 'rb') as file:
-            global result, latitudes, longitudes
+            # global result, latitudes, longitudes
             regions, result, latitudes, longitudes = pickle.load(file)
     else:
-        define_resolutions(settings)
+        result, regions, longitudes, latitudes = define_resolutions(settings)
         
     if Path('_mesh_temp.pkl').exists():
         with open('_mesh_temp.pkl', 'rb') as file:
             global mesh
             mesh = pickle.load(file)
     else:
-        triangulation('jigsaw/','jigsaw/')
+        triangulation('jigsaw/','jigsaw/', longitudes, latitudes, result)
         
     cut_land(settings, depth_limit=-30)
     
