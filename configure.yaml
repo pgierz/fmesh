@@ -2,10 +2,10 @@
 topo_path: "./topo/RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc" # path to topography
 n_latitudes: 180 # number of latitudes (one will be added)
 n_longitudes: 360 # number of longitudes (one will be added)
-base_resolution: 111 # resolution at equator
+base_resolution: 300 # resolution at equator
 
 mercator_resolution:
-    do_mercator_refinement: true
+    do_mercator_refinement: false
     norhtern_boundary: 77
     norhtern_lowest_resolution: 25
     southern_boundary: -50
@@ -21,12 +21,12 @@ refine_along_coastlines:
 regions:
     - name: Denmark
       path: './kml/Denmark.kml' # path to the .kml file
-      resolution: 4 # resolution of the inner region
+      resolution: 100 # resolution of the inner region
       precision: 10 # each section of polygone will by splitted in `precision` nuber of times
       order: true # If True, fist polygone is internal and second is external. I False, then other way round. 
     - name: Gibraltar
       path: './kml/Gibraltar.kml'
-      resolution: 4
+      resolution: 100
       precision: 10
       order: true
 
