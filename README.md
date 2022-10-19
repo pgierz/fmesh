@@ -1,7 +1,11 @@
 # fmesh
 
 Simple mesh generation for regional FESOM2 setups.
+
 Originally created by Sergey Kirillov.
+
+Video with process of defining regions and looking at the result can be found under the link below: 
+[<img src="https://user-images.githubusercontent.com/3407313/196788021-4a86fc91-0883-4e8d-8e4c-21c0b6bcdb65.png" width="50%">](https://youtu.be/8sxx6JwoLsg "Creating regional FESOM2 mesh with fmesh.")
 
 ## Installation
 
