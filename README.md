@@ -14,6 +14,14 @@ and activate it
 conda activate fmesh
 ```
 
+#### Downloading necessary data
+
+You have to download bathymetry and coastlines. This can be done by executing:
+
+```bash
+./download_data.sh
+```
+
 ## Usage
 
 You have to configure your future mesh in the `configure.yaml` and then run:
