@@ -1,0 +1,45 @@
+
+topo_path: "./topo/RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc" # path to topography
+n_latitudes: 180 # number of latitudes (one will be added)
+n_longitudes: 360 # number of longitudes (one will be added)
+base_resolution: 300 # resolution at equator
+
+mercator_resolution:
+    do_mercator_refinement: false
+    norhtern_boundary: 77
+    norhtern_lowest_resolution: 25
+    southern_boundary: -50
+    southern_lowest_resolution: 25
+
+refine_along_coastlines:
+    do_refine_along_coastlines: false
+    min_resolution: 10      # km, resolution at the coast 
+    max_distance: 50      # km, distance from the coast
+    min_length: 200        # km, min length of coastline
+    averaging: 25          # km, smoothing coastline
+
+regions:
+    - name: Denmark
+      path: './kml/Denmark.kml' # path to the .kml file
+      resolution: 100 # resolution of the inner region
+      precision: 10 # each section of polygon will by splitted in `precision` nuber of times
+      order: true # If True, fist polygon is internal and second is external. I False, then other way round. 
+    - name: Gibraltar
+      path: './kml/Gibraltar.kml'
+      resolution: 100
+      precision: 10
+      order: true
+
+
+levels: [0.0, -5.0, -10.0, -15.0, -20.0, -25.0, -30.0, -35.0, 
+        -40.0, -45.0, -50.0, -55.0, -60.0, -65.0, -70.0, -75.0,
+        -80.0, -85.0, -90.0, -95.0, -100.0, -110.0, -120.0,
+        -130.0, -140.0, -150.0, -160.0, -170.0, -180.0, -190.0,
+        -200.0, -220.0, -240.0, -260.0, -280.0, -300.0, -340.0,
+        -380.0, -420.0, -460.0, -500.0, -540.0, -580.0, -620.0,
+        -660.0, -760.0, -860.0, -1040.0, -1180.0, -1380.0,
+        -1500.0, -1700.0, -1920.0, -2150.0, -2400.0, -2650.0,
+        -2900.0, -3150.0, -3400.0, -3650.0, -3900.0, -4150.0,
+        -4400.0, -4650.0, -4900.0, -5150.0, -5400.0, -5650.0,
+        -6000.0, -6350.0]
+    

@@ -6,9 +6,6 @@ Created on Sat Jul 30 13:00:19 2022
 """
 
 import sys
-sys.path.extend(['/Users/sergeikirillov/CEOS/Work/Python/module',]) 
-
-
 import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cf
@@ -16,6 +13,7 @@ import pickle
 import netCDF4 as nc
 import os
 import jigsawpy
+import yaml
 
 from fastkml import geometry, kml
 from pathlib import Path
@@ -43,8 +41,9 @@ def create_tria_in_node_dictionary(triangles):
     
 class Find_topo():
     
-    def __init__(self):
-        self.__ds = nc.Dataset("RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc")
+    def __init__(self, settings):
+        topo_path = settings['topo_path']#"./topo/RTopo-2.0.1_30sec_bos_fix_lowres_D3.nc"
+        self.__ds = nc.Dataset(topo_path)
         self.__lat, self.__lon = self.__ds.variables["lat"][:, 1], self.__ds.variables["lon"][:, 0]
         self.topo = self.__ds.variables["topo"][:, :]
         
@@ -58,7 +57,18 @@ class Find_topo():
 #   presision sets the amount of nodes for each segment of kml contour for
 #   the followed linear interpolation between internal and external contours 
 
-def from_kml(file, name, res, precision=10, order=True):
+def from_kml(file, order=True):
+    '''
+    Opens kml files that define regions with different resolution from the base one.
+
+    Parameters
+    ----------
+    file: str
+        path to the .kml file
+    order: bool
+        If True, fist polygone is internal and second is external. I False, then other way round. 
+
+    '''
     
     with open(file) as kml_file:
         doc = kml_file.read().encode('utf-8')
@@ -75,24 +85,18 @@ def from_kml(file, name, res, precision=10, order=True):
                     else:
                         outer = [lon, lat]
     
-    regions.append({})
     if not order:
         internal, outer = outer, internal
-            
-    regions[-1]['name'] = name
-    regions[-1]['Polygon inside'] =  internal[0], internal[1]
-    regions[-1]['Polygon outside'] = outer[0], outer[1]
-    regions[-1]['resolution'] = res
-    regions[-1]['precision'] = precision
-    
+
+    return internal, outer
 
 # THE FUNCTION FOR ADJUSTING RESOLUTIONS TO THE BATHYMETRY 
 #    Need to be called if needed! 
 
-def bathymetry_adjustment():
+def bathymetry_adjustment(settings, latitudes, longitudes, result):
 
     print('read topography')
-    topo = Find_topo()
+    topo = Find_topo(settings)
     
     minimum = np.min(topo.topo)
     maximum = np.max(topo.topo)
@@ -108,6 +112,7 @@ def bathymetry_adjustment():
             depth = interpolate_lonlat(lat, xb, yb, dx, dy, topo.topo, min_points=1)
             if depth>0:
                 result[j, i] = 150 - 149* (depth - 0)/(maximum-0)
+    return result
 
 
 # TRANSFORM COASTLINES FROM DEGREES TO RADIANS FOR PARAVIEW ------------------- 
@@ -142,7 +147,8 @@ def add_coastline():
 #      "min_length" is the minimum length of coatline in km used for calculations
 #      "averaging" is the smoothing parameter in km  
 
-def refine_along_coastlines(min_resolution, max_distance, min_length, averaging):
+def refine_along_coastlines(longitudes, latitudes, result, 
+                            min_resolution, max_distance, min_length, averaging):
     
     import geopy.distance as dist
     
@@ -202,7 +208,7 @@ def refine_along_coastlines(min_resolution, max_distance, min_length, averaging)
 
 # DEFINE RESOLUTIONS WITHIN POLYGONS FROM *.KML FILES
 
-def refine(region):
+def refine(region, longitudes, latitudes, result):
     
     (poly_in, poly_out, resolution, precision) = (region['Polygon inside'], 
                                                   region['Polygon outside'], 
@@ -231,8 +237,8 @@ def refine(region):
         max_lon = 180
         
     if abs(max_lon + min_lon) < 20: 
-        min_lon = -180
-        max_lon = 180
+        min_lon = -40
+        max_lon = 40
         
     
     print('') 
@@ -301,14 +307,13 @@ def refine(region):
 # THE BLOCK WHERE THE BACKGROUND RESOLUTIONS ARE SET, REFINED ALONG COASTLINES, 
 # REFINED WITHINN KML POLYGONS AND __CAN_BE__ ADJUSTED TO BATHYMETRY IF NEEDED
 
-def define_resolutions():
+def define_resolutions(settings):
     
-    global result, regions, longitudes, latitudes
+    latitudes = np.linspace(-90, 90, settings['n_latitudes'] + 1)        # 180*16
+    longitudes = np.linspace(-180, 180, np.round(settings['n_longitudes']).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
     
-    latitudes = np.linspace(-90, 90, 180*16 + 1)        # 180*16
-    longitudes = np.linspace(-180, 180, np.round(360 * 16/5.75).astype(int) + 1)    # np.round(360*16/5.75).astype(int)
-    
-    base_resolution = 111
+    # base_resolution = 111
+    base_resolution = settings['base_resolution']
     
     result = np.full([len(latitudes), len(longitudes)], base_resolution).astype(float)
 
@@ -324,35 +329,62 @@ def define_resolutions():
     #            result[j, i] = arctic_resolution
     
     # resolution in the entire Arctic above 60N
-    for j in range(0, len(latitudes)):
-        result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
-        if abs(latitudes[j]) >= 77:  
-            result[j, :] = 25
-        
-    
+    # for j in range(0, len(latitudes)):
+    #     result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
+    #     if abs(latitudes[j]) >= 77:  
+    #         result[j, :] = 25
+
+    if settings['mercator_resolution']['do_mercator_refinement']:
+        for j in range(0, len(latitudes)):
+            result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
+            if latitudes[j] >= settings['mercator_resolution']['norhtern_boundary']:  
+                result[j, :] = settings['mercator_resolution']['norhtern_lowest_resolution']
+            elif latitudes[j] <= settings['mercator_resolution']['southern_boundary']:
+                result[j, :] = settings['mercator_resolution']['southern_lowest_resolution']
+
     # refine resolution along coastlines
-    min_resolution = 5      # km, resolution at the coast 
-    max_distance = 150      # km, distance from the coast
-    min_length = 200        # km, min length of coastline
-    averaging = 50          # km, smoothing coastline 
-    
-    refine_along_coastlines(min_resolution=min_resolution, max_distance=max_distance, 
-                            min_length=min_length, averaging=averaging)
+
+    min_resolution=settings['refine_along_coastlines']['min_resolution']
+    max_distance=settings['refine_along_coastlines']['max_distance']
+    min_length=settings['refine_along_coastlines']['min_length']
+    averaging=settings['refine_along_coastlines']['averaging']
+
+    if settings['refine_along_coastlines']['do_refine_along_coastlines']:
+        result = refine_along_coastlines(longitudes, latitudes, result,
+                                min_resolution=min_resolution,
+                                max_distance=max_distance, 
+                                min_length=min_length,
+                                averaging=averaging)
     
     # create polygons from .kml files
     regions = []
     #from_kml('_kml/CAA.kml','CAA', res=5, precision=10, order=True)
-    from_kml('_kml/Baffin_Bay.kml','Baffin', res=5, precision=20, order=True)
-    from_kml('_kml/Nares.kml','Nares', res=1, precision=20, order=True)
-    from_kml('_kml/Peabody.kml','Peabody', res=0.18, precision=20, order=True)
+    # from_kml('./kml/Baffin_Bay.kml','Baffin', res=5, precision=20, order=True)
+    # from_kml('./kml/fram.kml','fram', res=5, precision=20, order=True)
+    # from_kml('./kml/Nares.kml','Nares', res=1, precision=20, order=True)
+    # from_kml('./kml/Peabody.kml','Peabody', res=0.18, precision=20, order=True)
     #from_kml('_kml/Cardigan.kml','Cardigan', res=0.2, precision=10, order=True)
     #from_kml('_kml/Fury.kml','Fury', res=0.2, precision=10, order=True)
-    #from_kml('_kml/Denmark.kml','Denmark', res=0.5, precision=10, order=True)
-    #from_kml('_kml/Gibraltar.kml','Gibraltar', res=0.5, precision=10, order=True)
+    # from_kml('./kml/Denmark.kml','Denmark', res=4, precision=10, order=True)
+    # from_kml('./kml/Gibraltar.kml','Gibraltar', res=4, precision=10, order=True)
     
+    for reg in settings['regions']:
+        internal, outer = from_kml(reg['path'],
+                                #    reg['name'], 
+                                #    res=reg['resolution'], 
+                                #    precision=reg['precision'],
+                                   order=reg['order'])
+        regions.append({})
+        regions[-1]['name'] = reg['name']
+        regions[-1]['Polygon inside'] =  internal[0], internal[1]
+        regions[-1]['Polygon outside'] = outer[0], outer[1]
+        regions[-1]['resolution'] = reg['resolution']
+        regions[-1]['precision'] = reg['precision']
+
     # refining
+    print(regions)
     for region in regions:
-        result = refine(region)
+        result = refine(region, longitudes, latitudes, result)
     
     # bathymetry_adjustment()
     pass
@@ -379,12 +411,10 @@ def define_resolutions():
             file.write(f'   resolution: {region["resolution"]} km\n') 
             file.write(f'   precision: {region["precision"]}\n') 
         
- 
+    return result, regions, longitudes, latitudes
 # JIGSAW TRIANGULATION IS CALLED BY THIS FUNCTION 
     
-def triangulation(src_path, dst_path):
-    
-    global mesh
+def triangulation(src_path, dst_path, longitudes, latitudes, result):
 
     opts = jigsawpy.jigsaw_jig_t()
 
@@ -457,7 +487,7 @@ def triangulation(src_path, dst_path):
        
 # CUTTING OFF THE LAND (POSITIVE TOPOGRAPHY) FROM THE RESULTING JIGSAW MESH
 
-def cut_land(depth_limit=-20):
+def cut_land(settings, mesh, depth_limit=-20):
     
     # TRANSFORMING CARTESIAN MESH TO LONGITUDES AND LATITUDES -----------------
     
@@ -485,7 +515,7 @@ def cut_land(depth_limit=-20):
     print('')    
     print('reading global topography')
 
-    topo = Find_topo()
+    topo = Find_topo(settings)
         
     print('')    
     print('deleting triangles over land: step 1 of 2')
@@ -674,18 +704,8 @@ def cut_land(depth_limit=-20):
             file.write(f'{index+1} {lon_new[index]} {lat_new[index]} {coastnode_new[index]}\n') 
     
     with open('aux3d.out', 'w') as file:
-        #file.write(f'{48}\n') 
-        #levels = [0.00, -5.00, -10.00, -20.00, -30.00, -40.00, -50.00, -60.00, -70.00, -80.00, -90.00, -100.00, -115.00, -135.00, -160.00, -190.00, -230.00, -280.00, -340.00, -410.00, -490.00, -580.00, -680.00, -790.00, -910.00, -1040.00, -1180.00, -1330.00, -1500.00, -1700.00, -1920.00, -2150.00, -2400.00, -2650.00, -2900.00, -3150.00, -3400.00, -3650.00, -3900.00, -4150.00, -4400.00, -4650.00, -4900.00, -5150.00, -5400.00, -5650.00, -6000.00, -6250.00]
-     
-        file.write(f'{70}\n') 
-        levels = [0.0, -5.0, -10.0, -15.0, -20.0, -25.0, -30.0, -35.0, -40.0, -45.0, -50.0, -55.0, -60.0, -65.0, -70.0, -75.0, -80.0, -85.0, -90.0, -95.0, -100.0,
-                  -110.0, -120.0, -130.0, -140.0, -150.0, -160.0, -170.0, -180.0, -190.0, -200.0,
-                  -220.0, -240.0, -260.0, -280.0, -300.0,
-                  -340.0, -380.0, -420.0, -460.0, -500.0, -540.0, -580.0, -620.0, -660.0,
-                  -760.0, -860.0, -1040.0, -1180.0, -1380.0, -1500.0, -1700.0, -1920.0, -2150.0,
-                  -2400.0, -2650.0, -2900.0, -3150.0, -3400.0, -3650.0, -3900.0, -4150.0, -4400.0, -4650.0, -4900.0, -5150.0, -5400.0, -5650.0, -6000.0, -6350.0]
-        
-        for level in levels:
+        file.write(f'{int(len(settings["levels"]))}\n') 
+        for level in settings["levels"]:
             file.write(f'{level:.2f}\n') 
         for index in range(0, len(lon_new)):
             file.write(f'{depths_new[index]:.2f}\n') 
@@ -719,21 +739,24 @@ def cut_land(depth_limit=-20):
 
 
 def main():
+    with open('./configure.yaml') as file:
+        settings = yaml.load(file, Loader=yaml.FullLoader)
+
+    print(settings['levels'])
+
     if Path('_result_temp.pkl').exists():
         with open('_result_temp.pkl', 'rb') as file:
-            global result, latitudes, longitudes
             regions, result, latitudes, longitudes = pickle.load(file)
     else:
-        define_resolutions()
+        result, regions, longitudes, latitudes = define_resolutions(settings)
         
     if Path('_mesh_temp.pkl').exists():
         with open('_mesh_temp.pkl', 'rb') as file:
-            global mesh
             mesh = pickle.load(file)
     else:
-        triangulation('jigsaw/','jigsaw/')
+        mesh = triangulation('jigsaw/','jigsaw/', longitudes, latitudes, result)
         
-    cut_land(depth_limit=-30)
+    cut_land(settings, mesh, depth_limit=-30)
     
 
 if __name__ == '__main__':
