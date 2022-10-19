@@ -1,6 +1,7 @@
 # fmesh
 
 Simple mesh generation for regional FESOM2 setups.
+Originally created by Sergey Kirillov.
 
 ## Installation
 
