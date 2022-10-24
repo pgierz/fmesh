@@ -116,8 +116,13 @@ def bathymetry_adjustment(settings, latitudes, longitudes, result):
 
     for j, lat in enumerate(latitudes):
         printProgressBar(
-            j + 1, len(latitudes), prefix=f"Progress:", suffix="Complete", length=50
+            j + 1,
+            len(latitudes),
+            prefix="Progress:",
+            suffix="Complete",
+            length=50,
         )
+
 
         for i, lon in enumerate(longitudes):
 
@@ -141,7 +146,7 @@ def add_coastline():
     inp2 = []
 
     n = 0
-    for polygon in range(0, len(lon_coast)):
+    for polygon in range(len(lon_coast)):
         lons = lon_coast[polygon].tolist()
         lats = lat_coast[polygon].tolist()
 
@@ -153,8 +158,9 @@ def add_coastline():
 
         temp2 = [
             ((i + n, j + n), 0)
-            for (i, j) in zip(range(0, len(lons) - 1), range(1, len(lons)))
+            for (i, j) in zip(range(len(lons) - 1), range(1, len(lons)))
         ]
+
         temp2.append(((len(lons) - 1 + n, 0 + n), 0))
         inp2 = inp2 + temp2
 
@@ -181,8 +187,13 @@ def refine_along_coastlines(
     for i, grid_lon in enumerate(longitudes):
 
         printProgressBar(
-            i + 1, len(longitudes), prefix=f"Progress:", suffix="Complete", length=50
+            i + 1,
+            len(longitudes),
+            prefix="Progress:",
+            suffix="Complete",
+            length=50,
         )
+
 
         for j, grid_lat in enumerate(latitudes):
 
@@ -197,7 +208,7 @@ def refine_along_coastlines(
                 if grid_lon + d2 > 180:
                     variant = 3
 
-                for polygon in range(0, len(lon_coast)):
+                for polygon in range(len(lon_coast)):
 
                     if variant == 1:
                         cut = np.where(
@@ -290,8 +301,13 @@ def refine(region, longitudes, latitudes, result):
     for i, grid_lon in enumerate(longitudes):
 
         printProgressBar(
-            i + 1, len(longitudes), prefix=f"Progress:", suffix="Complete", length=50
+            i + 1,
+            len(longitudes),
+            prefix="Progress:",
+            suffix="Complete",
+            length=50,
         )
+
 
         for j, grid_lat in enumerate(latitudes):
 
@@ -322,7 +338,7 @@ def refine(region, longitudes, latitudes, result):
                     # DISTANCE TO THE INTERNAL CONTOUR
                     distance_to_in = 1e10
 
-                    for index in range(0, len(x_in) - 1):
+                    for index in range(len(x_in) - 1):
                         dist = np.sqrt((x_in[index] - x) ** 2 + (y_in[index] - y) ** 2)
                         for (xp, yp) in zip(
                             np.linspace(x_in[index], x_in[index + 1], precision),
@@ -340,7 +356,7 @@ def refine(region, longitudes, latitudes, result):
                     #   if nearest_corner == 0: nc2 = len(x_out)-2
                     #   else: nc2 = nearest_corner - 1
 
-                    for index in range(0, len(x_out) - 1):
+                    for index in range(len(x_out) - 1):
                         for (xp, yp) in zip(
                             np.linspace(x_out[index], x_out[index + 1], precision),
                             np.linspace(y_out[index], y_out[index + 1], precision),
@@ -402,7 +418,7 @@ def define_resolutions(settings):
     #         result[j, :] = 25
 
     if settings["mercator_resolution"]["do_mercator_refinement"]:
-        for j in range(0, len(latitudes)):
+        for j in range(len(latitudes)):
             result[j, :] = base_resolution * np.cos(np.deg2rad(latitudes[j]))
             if latitudes[j] >= settings["mercator_resolution"]["norhtern_boundary"]:
                 result[j, :] = settings["mercator_resolution"][
@@ -462,9 +478,6 @@ def define_resolutions(settings):
     print(regions)
     for region in regions:
         result = refine(region, longitudes, latitudes, result)
-
-    # bathymetry_adjustment()
-    pass
 
     # saving
     with open("_result_temp.pkl", "wb") as file:

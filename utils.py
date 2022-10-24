@@ -76,51 +76,45 @@ def gradapproach(X, Y, xb=0, yb=0, max_approaches=4):
 def interpolate(xb, yb, dx, dy, values, min_points=1):
     
     import numpy as np
-    
+
     d = np.full([2,2], np.nan)
     d[0, 0] = np.sqrt(dx**2 + dy**2) + 1e-24
     d[1, 0] = np.sqrt(dx**2 + (1-dy)**2) + 1e-24
     d[1, 1] = np.sqrt((1-dx)**2 + (1-dy)**2) + 1e-24
     d[0, 1] = np.sqrt((1-dx)**2 + dy**2) + 1e-24
-    
+
     z = []
     dd = 0
-    
+
     for (j, i) in ([(0, 0), (1, 0), (1, 1), (0, 1)]):
         if np.isfinite(values[yb+j, xb+i]):
             z.append(values[yb+j, xb+i]/d[j, i])
             dd += 1/d[j, i]
-    
-    if len(z) < min_points:
-        return np.nan
-    else:
-        return sum(z)/dd
+
+    return np.nan if len(z) < min_points else sum(z)/dd
 
 
 def interpolate_lonlat(lat, xb, yb, dx, dy, values, min_points=1):
     
     import numpy as np
-    
+
     scale = np.cos(np.deg2rad(lat))
-        
+
     d = np.full([2,2], np.nan)
     d[0, 0] = np.sqrt((dx*scale)**2 + dy**2) + 1e-6
     d[1, 0] = np.sqrt((dx*scale)**2 + (1-dy)**2) + 1e-6
     d[1, 1] = np.sqrt(((1-dx)*scale)**2 + (1-dy)**2) + 1e-6
     d[0, 1] = np.sqrt(((1-dx)*scale)**2 + dy**2) + 1e-6
-    
+
     z = []
     dd = 0
-    
+
     for (j, i) in ([(0, 0), (1, 0), (1, 1), (0, 1)]):
         if np.isfinite(values[yb+j, xb+i]):
             z.append(values[yb+j, xb+i]/d[j, i])
             dd += 1/d[j, i]
-    
-    if len(z) < min_points:
-        return np.nan
-    else:
-        return sum(z)/dd
+
+    return np.nan if len(z) < min_points else sum(z)/dd
 
 
 
@@ -141,42 +135,38 @@ def inside_outside(x, y, x_point, y_point, tolerance=1e-6):
     """
     
     import numpy as np
-    
+
     if (x[0] != x[-1]) | (y[0] != y[-1]):
         x = np.append(x, x[0])
         y = np.append(y, y[0])
-        
+
     dx = x - x_point
     dy = y - y_point
     directions = np.arctan2(dy, dx)*180/np.pi
     angles = np.full([len(x)-1], np.nan)
-    
-    for a in range(0, len(x)-1):
+
+    for a in range(len(x)-1):
         if (dx[a]==0) & (dy[a]==0):
-            status = 0
-            return status
+            return 0
         if a < len(x):
             angles[a] = directions[a+1]-directions[a]
             if abs(abs(angles[a]) - 180) <= tolerance:
-                status = 2
-                return status
+                return 2
             if angles[a] > 180:
                 angles[a] -= 360
             if angles[a] < -180:
                 angles[a] += 360
-    
+
     d = np.sum(angles)
-    
+
     if abs(d) <= tolerance:
-        status = 3
+        return 3
     elif abs(d+360) <= tolerance:
-        status = 1
+        return 1
     elif abs(d-360) <= tolerance:
-        status = -1
+        return -1
     else:
-        status = 4
-    
-    return status
+        return 4
 
 
 
@@ -191,13 +181,16 @@ def read_coastlines(min_points=1000, roughness=1, limits=[-180, 180, -90, 90]):
     path = 'd:/work/GeoData/OSM coastlines/'
     lat = []
     lon = []
-    
-    with open(path+'Coastlines_lon.pkl', 'rb') as file:
+
+    with open(f'{path}Coastlines_lon.pkl', 'rb') as file:
         x_res = pickle.load(file)
-    with open(path+'Coastlines_lat.pkl', 'rb') as file:
-        y_res = pickle.load(file)      
-    volume = os.path.getsize(path + 'Coastlines_lon.pkl') + os.path.getsize(path + 'Coastlines_lat.pkl')
-      
+    with open(f'{path}Coastlines_lat.pkl', 'rb') as file:
+        y_res = pickle.load(file)
+    volume = os.path.getsize(f'{path}Coastlines_lon.pkl') + os.path.getsize(
+        f'{path}Coastlines_lat.pkl'
+    )
+
+
     for x, y in zip(x_res, y_res):
         if (len(x) >= min_points):
             positions = np.where((x >= limits[0]) & (x <= limits[1]) & \
@@ -209,17 +202,17 @@ def read_coastlines(min_points=1000, roughness=1, limits=[-180, 180, -90, 90]):
     n_in = np.array([len(i) for i in y_res])
     n_out = np.array([len(i) for i in lon])
     compression = np.sum(n_out)/np.sum(n_in)
-    
+
     print('read_coastlines():')
     print('          With given parameters and within given limits')
     print(f'          {compression*100:.2f}% ({compression*volume*1e-6:.1f}Mb of {volume*1e-6:.0f}Mb) of the raw data is used')
     print('')
-        
+
     if compression>0.05:
         print('          With the given parameters the coastline subset may be too large for plotting')
         print('          Think of attenuating the parameters to reduce the subset size')
-                      
-        
+
+
     return lon, lat
 
 
@@ -234,91 +227,94 @@ def read_coastlines2(min_length=50, averaging=2, limits=[-180, 180, -90, 90]):
     import geopy.distance as dist
     from utils import printProgressBar
     from pathlib import Path
-    
+
     def smooth_coast(lon_subset, lat_subset, step, averaging):
         
         lat = []
         lon = []
-        
+
         for count, (x, y) in enumerate(zip(lon_subset, lat_subset)):
             positions = np.where((x >= limits[0]) & (x <= limits[1]) & \
                                  (y >= limits[2]) & (y <= limits[3]))[0]
-            
+
             printProgressBar(count+1, len(lon_subset), 
                              prefix = f'coastline element #{count+1} out of {len(lon_subset)}:', suffix = 'Complete', length = 50) 
-            
+
             x = x[positions]
             y = y[positions]
-                
-            start = 0    
+
+            start = 0
             end = 1
             lon_av = []
             lat_av = []
-                
+
             while end < len(x) - (step+1):
-                   
+
                 while (dist.distance((y[start], x[start]),(y[end], x[end])).km <= averaging) & (end < (len(x) - (step+1))):
                     end += step
-                    
+
                 lon_av.append(np.mean(x[start : end]))        
                 lat_av.append(np.mean(y[start : end]))   
                 start = end
-                                    
+
             if len(lon_av) >= 3:
 
                 lon_av = np.array(lon_av)
                 lat_av = np.array(lat_av)
-                
-                diff = (lon_av[2:len(lon_av)] + lon_av[0:len(lon_av)-2])/2 - lon_av[1:len(lon_av)-1]
+
+                diff = (lon_av[2:] + lon_av[:len(lon_av)-2]) / 2 - lon_av[1:-1]
                 index = np.where(abs(diff) > 1)[0]
                 lon_av = np.delete(lon_av, 2+index)
                 lat_av = np.delete(lat_av, 2+index)
-                
+
                 lon_av = np.append(lon_av, lon_av[0])
                 lat_av = np.append(lat_av, lat_av[0])
-                
+
                 lon.append(lon_av)
                 lat.append(lat_av)
-                
+
             else:
-                
+
                 lon_av = []
                 lat_av = []
-                
+
                 for i in (0,1,2):
                     delta = np.floor(len(x)/3).astype(int)
                     lon_av.append(np.mean(x[delta*i : delta*(i+1)]))
                     lat_av.append(np.mean(y[delta*i : delta*(i+1)]))
-                                
+
                 lon_av.append(lon_av[0])
                 lat_av.append(lat_av[0])
 
                 lon.append(np.array(lon_av))
                 lat.append(np.array(lat_av))
-                
+
         print('')    
-            
+
         return lon, lat
+
 
 
     path = './coastlines/'
 
-    if Path(path + 'min_length=' + str(min_length) + 'km_averaging=' + str(averaging)+ 'km.pkl').exists():
-        with open(path + 'min_length=' + str(min_length) + 'km_averaging=' + str(averaging)+ 'km.pkl', 'rb') as file:
+    if Path(
+        f'{path}min_length={str(min_length)}km_averaging={str(averaging)}km.pkl'
+    ).exists():
+        with open(f'{path}min_length={str(min_length)}km_averaging={str(averaging)}km.pkl', 'rb') as file:
             lon, lat = pickle.load(file)
     else:
 
-        with open(path+'Coastlines.pkl', 'rb') as file:
+        with open(f'{path}Coastlines.pkl', 'rb') as file:
             x_res, y_res, length_res = pickle.load(file)
-        
+
         lat_subset = [y for (i, y) in enumerate(y_res) if length_res[i] >= min_length]
         lon_subset = [x for (i, x) in enumerate(x_res) if length_res[i] >= min_length]
-          
+
         lon, lat = smooth_coast(lon_subset, lat_subset, np.round(averaging/0.05/10).astype(int), averaging)
-                          
-        with open(path + 'min_length=' + str(min_length) + 'km_averaging=' + str(averaging)+ 'km.pkl', 'wb') as file:
+
+        with open(f'{path}min_length={str(min_length)}km_averaging={str(averaging)}km.pkl', 'wb') as file:
             pickle.dump([lon, lat], file)   
-        
+
     return lon, lat
 
 
